@@ -1,0 +1,7 @@
+stamp_ns,stage,key
+1000000000,capture,f1
+1015000000,detect_published,f1
+1033000000,capture,f2
+1051000000,detect_published,f2
+1066000000,capture,f3
+1090000000,detect_published,f3

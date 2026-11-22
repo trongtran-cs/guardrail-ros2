@@ -1,0 +1,11 @@
+# Reviewed findings (cppcheck 2.13.0). Keep each entry narrow: id:file:line.
+# useStlAlgorithm: raw loops are kept deliberately for readability in safety-relevant code.
+useStlAlgorithm:src/guardrail_core/tools/latency_gate.cpp:112
+useStlAlgorithm:src/guardrail_detector_node/src/yolox_postprocess.cpp:44
+useStlAlgorithm:src/guardrail_detector_node/src/yolox_postprocess.cpp:116
+# useInitializationList: members are created from node parameters/publishers inside the
+# constructor body, after the rclcpp::Node base is fully constructed.
+useInitializationList:src/guardrail_detector_node/src/image_source_node.cpp:43
+useInitializationList:src/guardrail_supervisor_node/src/supervisor_node.cpp:39
+# False positive: setRow() writes through t.data(), so the parameter cannot be const.
+constParameterReference:src/guardrail_detector_node/test/test_yolox_postprocess.cpp:41

@@ -1,0 +1,18 @@
+# Dev convenience: mounts the repo so edits on macOS/Windows build inside Linux.
+#   docker compose run --rm dev
+#   (inside) colcon build && colcon test
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    image: guardrail-ros:dev
+    working_dir: /ws
+    volumes:
+      - ./src:/ws/src
+      - ./scripts:/ws/scripts:ro
+      - ./trace_out:/ws/trace_out
+    # LTTng user-space tracing needs shared memory; generous /dev/shm avoids ring-buffer failures.
+    shm_size: "512m"
+    stdin_open: true
+    tty: true

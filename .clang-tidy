@@ -1,0 +1,14 @@
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  misc-*,
+  modernize-use-nodiscard,
+  performance-*,
+  readability-identifier-naming,
+  -bugprone-easily-swappable-parameters
+WarningsAsErrors: 'bugprone-*,cert-*'
+HeaderFilterRegex: 'guardrail_core/.*'

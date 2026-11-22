@@ -1,0 +1,5 @@
+[12:00:01.000000000] (+?.?????????) host ros2:rclcpp_publish: { cpu_id = 1 }, { vpid = 100, vtid = 101 }, { publisher_handle = 0xAA, message = 0x1000 }
+[12:00:01.015000000] (+0.015000000) host ros2:rmw_publish: { cpu_id = 1 }, { vpid = 100, vtid = 101 }, { message = 0x1000 }
+[12:00:01.033000000] (+0.018000000) host ros2:rclcpp_publish: { cpu_id = 2 }, { vpid = 100, vtid = 101 }, { publisher_handle = 0xAA, message = 0x2000 }
+[12:00:01.040000000] (+0.007000000) host ros2:callback_start: { cpu_id = 2 }, { vpid = 100, vtid = 102 }, { callback = 0xBB, is_intra_process = 0 }
+[12:00:01.060000000] (+0.020000000) host ros2:rmw_publish: { cpu_id = 2 }, { vpid = 100, vtid = 101 }, { message = 0x2000 }

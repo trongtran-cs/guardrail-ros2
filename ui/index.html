@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>GuardRail-ROS Console</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#15181d;--mute:#5b6572;--line:#e1e5ea;--accent:#2457d6;
+--ok:#1a8f4c;--warn:#b7791f;--stop:#c0392b;--okbg:#e4f5ea;--warnbg:#fbf0d9;--stopbg:#fbe4e1;--grid:#e8ebef}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1216;--panel:#171b21;--ink:#e8ebef;--mute:#98a2b0;--line:#272d36;--accent:#6b97ff;
+--ok:#4cc380;--warn:#e0a84a;--stop:#ef6b5c;--okbg:#12301f;--warnbg:#33290f;--stopbg:#3a1815;--grid:#222830}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+h1{font-size:20px;margin:0}h1 span{color:var(--mute);font-weight:400;font-size:13px;margin-left:8px}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+nav button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;color:var(--mute);font:inherit;cursor:pointer;white-space:nowrap}
+nav button[aria-selected=true]{color:var(--ink);border-color:var(--accent);font-weight:600}
+.grid{display:grid;gap:16px;grid-template-columns:320px 1fr}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin:0 0 12px}
+.state{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.badge{font-size:22px;font-weight:700;padding:8px 18px;border-radius:8px}
+.NOMINAL{background:var(--okbg);color:var(--ok)}.DEGRADED{background:var(--warnbg);color:var(--warn)}.SAFE_STOP{background:var(--stopbg);color:var(--stop)}
+.big{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}.big small{font-size:13px;color:var(--mute);font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;min-height:26px}
+.chip{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--warnbg);color:var(--warn);border:1px solid currentColor}
+.chip.stop{background:var(--stopbg);color:var(--stop)}.chip.none{background:none;color:var(--mute);border-color:var(--line)}
+label{display:block;margin:12px 0 2px;font-size:13px}label output{float:right;font-variant-numeric:tabular-nums;color:var(--mute)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+button.b,label.b{display:inline-block;margin:0;font:inherit;font-size:13px;padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.b:hover,label.b:hover{border-color:var(--accent)}button.b[aria-pressed=true]{background:var(--stopbg);color:var(--stop);border-color:var(--stop)}
+canvas{width:100%;height:230px;display:block}
+.log{max-height:150px;overflow:auto;font:12px/1.6 ui-monospace,Menlo,monospace;color:var(--mute)}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font-size:12px;color:var(--mute);font-weight:600}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--stop);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:20px;text-align:center;color:var(--mute)}.drop.over{border-color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:10px 12px}.kpi div:first-child{font-size:12px;color:var(--mute)}
+.note{font-size:12px;color:var(--mute);margin-top:10px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>GuardRail-ROS <span>Safety supervisor console</span></h1>
+  <div class="note" style="margin:0">Đầu vào là ảnh/video · YOLOX chạy trong trình duyệt · không phải đo trên robot thật</div>
+</header>
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-tab="e2e">Ảnh / Video → Quyết định</button>
+  <button role="tab" aria-selected="false" data-tab="sim">Supervisor Simulator</button>
+  <button role="tab" aria-selected="false" data-tab="gate">Latency Gate</button>
+  <button role="tab" aria-selected="false" data-tab="camp">Fault Campaign</button>
+</nav>
+
+<!-- E2E -->
+<section id="e2e" class="grid">
+  <div class="card">
+    <h2>1 · Đầu vào: ảnh hoặc video</h2>
+    <div class="row" style="margin-top:0">
+      <label class="b">Chọn ảnh / video<input id="media" type="file" accept="image/*,video/*" hidden></label>
+      <button class="b" id="smp_img">Ảnh mẫu</button>
+      <button class="b" id="smp_vid">Video mẫu</button>
+    </div>
+    <div class="drop" id="dz2" style="margin-top:10px;padding:14px">hoặc kéo thả ảnh / video vào đây</div>
+    <div class="note">Mọi thứ xử lý cục bộ trong trình duyệt, không tải lên đâu cả.</div>
+    <h2 style="margin-top:18px">2 · Detector (YOLOX-nano, ONNX)</h2>
+    <div id="mstat" class="note" style="margin:0">Đang tải model…</div>
+    <div class="row"><label class="b">Chọn file .onnx khác<input id="modelfile" type="file" accept=".onnx" hidden></label></div>
+    <label>Score threshold <output id="o_thr"></output></label><input id="thr" type="range" min="0.1" max="0.9" step="0.05" value="0.35">
+    <h2 style="margin-top:18px">3 · Camera (để ước lượng khoảng cách)</h2>
+    <label>Tiêu cự f (pixel của ảnh gốc) <output id="o_foc"></output></label><input id="foc" type="range" min="200" max="1500" step="10" value="600">
+    <label>Chiều cao người H <output id="o_ph"></output></label><input id="ph" type="range" min="1.4" max="2" step="0.05" value="1.7">
+    <div class="note">d = f·H / h<sub>bbox</sub>. Ngưỡng supervisor lấy từ tab Supervisor Simulator.</div>
+    <h2 style="margin-top:18px">Điều khiển</h2>
+    <div class="row">
+      <button class="b" id="e_pause">Tạm dừng</button>
+      <button class="b" id="e_rerun">Chạy lại</button>
+      <button class="b" id="e_cut" aria-pressed="false">Ngắt camera (mô phỏng)</button>
+    </div>
+  </div>
+  <div style="display:grid;gap:16px;align-content:start">
+    <div class="card">
+      <h2>Khung hình + người phát hiện</h2>
+      <canvas id="vcv" style="height:auto;background:var(--grid);border-radius:6px" width="640" height="360"></canvas>
+      <div class="note" id="vinfo">Chưa có ảnh/video. Không có đầu vào ⇒ supervisor giữ SAFE_STOP (fail-safe).</div>
+    </div>
+    <div class="card">
+      <h2>Quyết định của Supervisor</h2>
+      <div class="state">
+        <div id="e_badge" class="badge SAFE_STOP">SAFE_STOP</div>
+        <div class="big"><span id="e_speed">0.00</span> <small>m/s giới hạn tốc độ</small></div>
+        <div class="big"><span id="e_near">—</span> <small>m người gần nhất</small></div>
+      </div>
+      <div class="chips" id="e_reasons"></div>
+    </div>
+    <div class="card">
+      <h2>Độ trễ pipeline (ảnh → quyết định)</h2>
+      <div class="kpis" id="e_kpis" style="margin:0 0 10px"></div>
+      <div class="row" style="margin-top:0"><button class="b" id="e_dl">Tải latency.txt</button><button class="b" id="e_gate">Gửi sang Latency Gate</button></div>
+      <div class="note">Đây là độ trễ WebAssembly trên máy của bạn, không phải trên thiết bị edge.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SIM -->
+<section id="sim" class="grid hidden">
+  <div class="card">
+    <h2>Đầu vào perception (giả lập – thay cho detector)</h2>
+    <label>Confidence <output id="o_conf"></output></label>
+    <input id="conf" type="range" min="0" max="1" step="0.01" value="0.9">
+    <label>Khoảng cách người gần nhất <output id="o_dist"></output></label>
+    <input id="dist" type="range" min="0" max="6" step="0.05" value="6">
+    <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input id="noperson" type="checkbox" checked> Không có người trong khung</label>
+    <label>Pipeline latency <output id="o_lat"></output></label>
+    <input id="lat" type="range" min="0" max="300" step="1" value="20">
+    <h2 style="margin-top:18px">Chèn lỗi (FaultInjector)</h2>
+    <div class="row">
+      <button class="b" id="f_freeze" aria-pressed="false">Camera freeze</button>
+      <button class="b" id="f_drop" aria-pressed="false">Total dropout</button>
+      <button class="b" id="f_skew" aria-pressed="false">Clock skew (+1 s)</button>
+      <button class="b" id="f_nan" aria-pressed="false">Confidence = NaN</button>
+    </div>
+    <h2 style="margin-top:18px">Ngưỡng (Config)</h2>
+    <label>Stale → DEGRADED <output id="o_sd"></output></label><input id="sd" type="range" min="50" max="500" step="10" value="200">
+    <label>Stale → SAFE_STOP <output id="o_ss"></output></label><input id="ss" type="range" min="100" max="1000" step="10" value="500">
+    <label>Latency budget <output id="o_lb"></output></label><input id="lb" type="range" min="20" max="300" step="5" value="100">
+    <label>Min confidence <output id="o_mc"></output></label><input id="mc" type="range" min="0" max="1" step="0.05" value="0.4">
+    <label>Slow distance <output id="o_sl"></output></label><input id="sl" type="range" min="0.5" max="5" step="0.1" value="2">
+    <label>Stop distance <output id="o_st"></output></label><input id="st" type="range" min="0.2" max="3" step="0.1" value="0.8">
+    <label>Recovery cycles <output id="o_rc"></output></label><input id="rc" type="range" min="1" max="30" step="1" value="5">
+    <div class="row"><button class="b" id="reset">Reset (về SAFE_STOP)</button><button class="b" id="pause">Tạm dừng</button></div>
+  </div>
+  <div style="display:grid;gap:16px;align-content:start">
+    <div class="card">
+      <h2>Quyết định của Supervisor</h2>
+      <div class="state">
+        <div id="badge" class="badge SAFE_STOP">SAFE_STOP</div>
+        <div class="big"><span id="speed">0.00</span> <small>m/s giới hạn tốc độ</small></div>
+        <div class="big"><span id="age">0</span> <small>ms tuổi dữ liệu</small></div>
+      </div>
+      <div class="chips" id="reasons"></div>
+    </div>
+    <div class="card"><h2>Timeline 20 s</h2><canvas id="tl"></canvas>
+      <div class="note">Nền: trạng thái · đường xanh: tốc độ cho phép · đường cam: latency / budget · đường tím: khoảng cách / 6 m</div></div>
+    <div class="card"><h2>Nhật ký chuyển trạng thái</h2><div class="log" id="log"></div></div>
+  </div>
+</section>
+
+<!-- GATE -->
+<section id="gate" class="hidden">
+  <div class="card">
+    <h2>Latency gate (p99 / jitter / max)</h2>
+    <div class="drop" id="dz">Kéo thả file latency (mỗi dòng một số nguyên nano-giây) vào đây, hoặc
+      <label class="b" style="margin-left:6px">chọn file<input id="latfile" type="file" hidden></label>
+      <button class="b" id="latdemo">Dùng dữ liệu mẫu</button></div>
+    <div class="row" style="margin-top:12px">
+      <label style="margin:0">p99 ≤ <input id="b99" type="number" value="30" style="width:70px"> ms</label>
+      <label style="margin:0">jitter ≤ <input id="bj" type="number" value="10" style="width:70px"> ms</label>
+      <label style="margin:0">max ≤ <input id="bm" type="number" value="80" style="width:70px"> ms</label>
+    </div>
+    <div id="gout" class="hidden">
+      <div class="kpis" id="kpis"></div>
+      <div id="verdict" class="badge" style="display:inline-block;font-size:16px"></div>
+      <canvas id="hist" style="margin-top:12px"></canvas>
+    </div>
+    <div class="note">Trình duyệt tính phân vị chính xác; CLI <code>latency_gate</code> dùng cận trên của bucket histogram nên có thể lớn hơn nhẹ. Tệp được xử lý hoàn toàn cục bộ.</div>
+  </div>
+</section>
+
+<!-- CAMPAIGN -->
+<section id="camp" class="hidden">
+  <div class="card">
+    <h2>Kết quả fault campaign</h2>
+    <div class="row" style="margin:0 0 12px"><label class="b">Mở CSV khác<input id="csvfile" type="file" accept=".csv" hidden></label>
+      <span class="note" style="align-self:center;margin:0">Tạo bằng: <code>fault_campaign --scenario all --csv campaign.csv</code></span></div>
+    <div id="ctab"></div>
+    <div class="note">Mặc định hiển thị lần chạy seed 20261122 (9/9 pass). Đây là mô phỏng logic ở 30 Hz, không phải đo Gazebo/robot.</div>
+  </div>
+</section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"></script>
+<script src="yolox.js"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const MS=1e6, DT=1e9/30;
+const FLAGS=[[1,"Stale data",0],[2,"Invalid input",1],[4,"Latency budget",0],[8,"Low confidence",0],[16,"Person near",0],[32,"Person very near",1],[64,"Stale critical",1]];
+const NAMES=["NOMINAL","DEGRADED","SAFE_STOP"];
+
+/* ---- Faithful JS port of guardrail::Supervisor (supervisor.cpp). float32 via Math.fround ---- */
+class Supervisor{
+  constructor(c){this.c=c;this.state=2;this.streak=0}
+  update(i){
+    const c=this.c,f=Math.fround;let req=0,r=0;
+    const ok=Number.isFinite(i.conf)&&i.conf>=0&&i.conf<=1&&Number.isFinite(i.dist)&&i.lat>=0&&i.now>=i.last;
+    if(!ok){req=2;r|=2}else{
+      const age=i.now-i.last;
+      if(age>c.ss){req=Math.max(req,2);r|=64}else if(age>c.sd){req=Math.max(req,1);r|=1}
+      if(i.lat>c.lb){req=Math.max(req,1);r|=4}
+      if(f(i.conf)<f(c.mc)){req=Math.max(req,1);r|=8}
+      if(f(i.dist)>=0){
+        if(f(i.dist)<f(c.st)){req=Math.max(req,2);r|=32}else if(f(i.dist)<f(c.sl)){req=Math.max(req,1);r|=16}}
+    }
+    if(req>=this.state){this.state=req;this.streak=0}
+    else if(++this.streak>=c.rc){this.state--;this.streak=0}
+    return {state:this.state,speed:[c.vn,c.vd,0][this.state],reasons:r,age:ok?i.now-i.last:-1};
+  }
+}
+
+/* ---- Simulator ---- */
+const S={sup:null,now:0,last:0,hist:[],paused:false,faults:{freeze:0,drop:0,skew:0,nan:0},lastState:2,tick:0,seed:20261122};
+const rng=()=>{S.seed=(S.seed*1664525+1013904223)>>>0;return S.seed/4294967296};
+function cfg(){return{sd:+$("sd").value*MS,ss:+$("ss").value*MS,lb:+$("lb").value*MS,mc:+$("mc").value,sl:+$("sl").value,st:+$("st").value,rc:+$("rc").value,vd:0.3,vn:1.0}}
+function reset(){S.sup=new Supervisor(cfg());S.now=0;S.last=0;S.hist=[];S.lastState=2;$("log").textContent="";S.tick=0}
+function fmtOut(){
+  const u={conf:"",dist:" m",lat:" ms",sd:" ms",ss:" ms",lb:" ms",mc:"",sl:" m",st:" m",rc:""};
+  for(const k in u){$("o_"+{conf:"conf",dist:"dist",lat:"lat",sd:"sd",ss:"ss",lb:"lb",mc:"mc",sl:"sl",st:"st",rc:"rc"}[k]).textContent=(k==="dist"&&$("noperson").checked?"—":$(k).value+u[k])}
+}
+function step(){
+  S.now+=DT;S.tick++;
+  const F=S.faults;
+  if(!F.freeze&&!F.drop)S.last=S.now;
+  if(F.skew)S.last=S.now+1e9;  // future stamp => now < last => invalid input
+  S.sup.c=cfg();
+  const jit=(rng()-.5)*4;
+  const inp={now:S.now,last:S.last,conf:F.nan?NaN:+$("conf").value,
+    dist:$("noperson").checked?-1:+$("dist").value,lat:Math.max(0,(+$("lat").value+jit))*MS};
+  const d=S.sup.update(inp);
+  S.hist.push({t:S.now,s:d.state,v:d.speed,lat:inp.lat,dist:inp.dist});
+  while(S.hist.length>600)S.hist.shift();
+  if(d.state!==S.lastState){
+    const li=document.createElement("div");
+    li.textContent=`t=${(S.now/1e9).toFixed(2)}s  ${NAMES[S.lastState]} → ${NAMES[d.state]}  ${reasonText(d.reasons)}`;
+    $("log").prepend(li);S.lastState=d.state;
+  }
+  render(d);
+}
+function reasonText(r){return FLAGS.filter(f=>r&f[0]).map(f=>f[1]).join(", ")}
+function render(d){
+  const b=$("badge");b.textContent=NAMES[d.state];b.className="badge "+NAMES[d.state];
+  $("speed").textContent=d.speed.toFixed(2);$("age").textContent=d.age<0?"—":Math.round(d.age/MS);
+  const ch=$("reasons");ch.textContent="";
+  const act=FLAGS.filter(f=>d.reasons&f[0]);
+  if(!act.length){const e=document.createElement("span");e.className="chip none";e.textContent=d.state?"Đang hồi phục (chờ chuỗi chu kỳ khỏe)":"Không có lý do hạn chế";ch.append(e)}
+  for(const f of act){const e=document.createElement("span");e.className="chip"+(f[2]?" stop":"");e.textContent=f[1];ch.append(e)}
+  draw();
+}
+function setup(cv){const r=cv.getBoundingClientRect(),dpr=devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);return[g,r.width,r.height]}
+function draw(){
+  const[g,W,H]=setup($("tl"));g.clearRect(0,0,W,H);
+  const n=S.hist.length;if(n<2)return;
+  const bg=["--okbg","--warnbg","--stopbg"].map(css),lc=["--ok","--warn","--stop"].map(css);
+  const x=i=>i/599*W;
+  for(let i=0;i<n;i++){g.fillStyle=bg[S.hist[i].s];g.fillRect(x(i+600-n),0,W/599+1,H)}
+  g.strokeStyle=css("--grid");g.lineWidth=1;for(let k=1;k<4;k++){g.beginPath();g.moveTo(0,H*k/4);g.lineTo(W,H*k/4);g.stroke()}
+  const line=(fn,col)=>{g.strokeStyle=col;g.lineWidth=2;g.beginPath();S.hist.forEach((h,i)=>{const y=H-6-(H-12)*Math.min(1,Math.max(0,fn(h)));i?g.lineTo(x(i+600-n),y):g.moveTo(x(i+600-n),y)});g.stroke()};
+  line(h=>h.v/1.0,css("--ok"));line(h=>h.lat/(S.sup.c.lb*2),css("--warn"));line(h=>h.dist<0?NaN:h.dist/6,"#9b59d0");
+  g.fillStyle=css("--mute");g.font="11px system-ui";g.fillText("−20 s",4,H-4);g.fillText("now",W-28,H-4);
+}
+setInterval(()=>{if(!S.paused&&!document.hidden&&!$("sim").classList.contains("hidden"))step()},1000/30);
+
+/* controls */
+for(const id of ["conf","dist","lat","sd","ss","lb","mc","sl","st","rc","noperson"])$(id).addEventListener("input",fmtOut);
+$("noperson").addEventListener("change",fmtOut);
+$("dist").addEventListener("input",()=>$("noperson").checked=false);
+for(const [id,k] of [["f_freeze","freeze"],["f_drop","drop"],["f_skew","skew"],["f_nan","nan"]])
+  $(id).onclick=e=>{S.faults[k]=!S.faults[k];e.currentTarget.setAttribute("aria-pressed",S.faults[k])};
+$("reset").onclick=()=>{reset();fmtOut()};
+$("pause").onclick=e=>{S.paused=!S.paused;e.currentTarget.textContent=S.paused?"Tiếp tục":"Tạm dừng"};
+
+/* ---- Tabs ---- */
+function selectTab(name){
+  document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===name));
+  for(const s of ["e2e","sim","gate","camp"])$(s).classList.toggle("hidden",s!==name);
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
+
+/* ---- Latency gate ---- */
+function runGate(text){
+  const v=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(Number);
+  if(!v.length||v.some(x=>!Number.isFinite(x)||x<0)){alert("File không hợp lệ: mỗi dòng phải là một số nguyên nano-giây ≥ 0");return}
+  const ms=v.map(x=>x/1e6).sort((a,b)=>a-b),q=p=>ms[Math.min(ms.length-1,Math.ceil(p/100*ms.length)-1)];
+  const p50=q(50),p99=q(99),mx=ms[ms.length-1],jit=p99-p50;
+  const B={p99:+$("b99").value,j:+$("bj").value,m:+$("bm").value};
+  const chk=[["p99",p99,B.p99],["jitter",jit,B.j],["max",mx,B.m]];
+  $("gout").classList.remove("hidden");
+  $("kpis").innerHTML=`<div class=kpi><div>Mẫu</div><div class=big>${ms.length}</div></div><div class=kpi><div>p50</div><div class=big>${p50.toFixed(1)}<small> ms</small></div></div>`+
+    chk.map(([n,val,b])=>`<div class=kpi><div>${n} (≤ ${b} ms)</div><div class="big ${val>b?"fail":"pass"}">${val.toFixed(1)}<small> ms</small></div></div>`).join("");
+  const bad=chk.filter(c=>c[1]>c[2]),vd=$("verdict");
+  vd.textContent=bad.length?"FAIL — "+bad.map(c=>c[0]).join(", ")+" vượt ngân sách (exit 1)":"PASS (exit 0)";
+  vd.className="badge "+(bad.length?"SAFE_STOP":"NOMINAL");
+  const[g,W,H]=setup($("hist"));g.clearRect(0,0,W,H);
+  const nb=40,lo=0,hi=Math.max(mx,B.m)*1.05,cnt=new Array(nb).fill(0);
+  ms.forEach(x=>cnt[Math.min(nb-1,Math.floor(x/hi*nb))]++);const m=Math.max(...cnt);
+  cnt.forEach((c,i)=>{g.fillStyle=css("--accent");g.fillRect(i*W/nb+1,H-18-(H-30)*c/m,W/nb-2,(H-30)*c/m)});
+  for(const [x,col,t] of [[p99,css("--warn"),"p99"],[B.p99,css("--stop"),"budget"]]){const px=x/hi*W;g.strokeStyle=col;g.lineWidth=2;g.beginPath();g.moveTo(px,0);g.lineTo(px,H-18);g.stroke();g.fillStyle=col;g.font="11px system-ui";g.fillText(t,px+4,12)}
+  g.fillStyle=css("--mute");g.fillText("0 ms",2,H-4);g.fillText(hi.toFixed(0)+" ms",W-48,H-4);
+}
+let lastText="";
+const load=f=>f.text().then(t=>{lastText=t;runGate(t)});
+$("latfile").onchange=e=>e.target.files[0]&&load(e.target.files[0]);
+$("dz").ondragover=e=>{e.preventDefault();$("dz").classList.add("over")};
+$("dz").ondragleave=()=>$("dz").classList.remove("over");
+$("dz").ondrop=e=>{e.preventDefault();$("dz").classList.remove("over");e.dataTransfer.files[0]&&load(e.dataTransfer.files[0])};
+$("latdemo").onclick=()=>{let s=7,o=[];for(let i=0;i<2000;i++){s=(s*1664525+1013904223)>>>0;const u=s/4294967296;o.push(Math.round((15+10*u*u+(u>.985?25:0))*1e6))}lastText=o.join("\n");runGate(lastText)};
+for(const id of ["b99","bj","bm"])$(id).oninput=()=>lastText&&runGate(lastText);
+
+/* ---- Fault campaign ---- */
+const DEFAULT_CSV=`scenario,worst_state,detect_ms,false_alarms,final_state,pass
+baseline,NOMINAL,-1.0,0,NOMINAL,1
+camera_freeze,SAFE_STOP,566.7,0,SAFE_STOP,1
+total_dropout,SAFE_STOP,533.3,0,NOMINAL,1
+latency_spike_150ms,DEGRADED,33.3,0,NOMINAL,1
+clock_skew_future_1s,SAFE_STOP,33.3,0,NOMINAL,1
+clock_skew_past_300ms,DEGRADED,33.3,0,NOMINAL,1
+intermittent_drop_30pct,NOMINAL,-1.0,0,NOMINAL,1
+low_confidence,DEGRADED,33.3,0,NOMINAL,1
+person_very_close,SAFE_STOP,33.3,0,NOMINAL,1`;
+function showCampaign(csv){
+  const rows=csv.trim().split(/\r?\n/).slice(1).map(l=>l.split(","));
+  const ok=rows.filter(r=>r[5]==="1").length;
+  const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  $("ctab").innerHTML=`<div class="badge ${ok===rows.length?"NOMINAL":"SAFE_STOP"}" style="display:inline-block;font-size:16px;margin-bottom:12px">${ok}/${rows.length} scenarios pass</div>
+  <div style="overflow-x:auto"><table><tr><th>Scenario</th><th>Worst state</th><th>Detect (ms)</th><th>False alarms</th><th>Final</th><th>Kết quả</th></tr>`+
+  rows.map(r=>`<tr><td>${esc(r[0])}</td><td><span class="chip ${r[1]==="SAFE_STOP"?"stop":r[1]==="NOMINAL"?"none":""}">${esc(r[1])}</span></td><td>${+r[2]<0?"—":esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td class="${r[5]==="1"?"pass":"fail"}">${r[5]==="1"?"PASS":"FAIL"}</td></tr>`).join("")+`</table></div>`;
+}
+$("csvfile").onchange=e=>e.target.files[0]&&e.target.files[0].text().then(showCampaign);
+showCampaign(DEFAULT_CSV);
+
+/* ---- End-to-end: image/video -> YOLOX (ONNX Runtime Web) -> distance -> Supervisor ---- */
+const E={sess:null,size:416,sup:null,lat:[],kind:null,playing:false,busy:false,cut:false,
+  lastNs:0,last:{conf:1,dist:-1,lat:0},frames:0,t0:0,img:null,loading:null};
+const vid=document.createElement("video");vid.muted=true;vid.playsInline=true;vid.loop=true;
+const snap=document.createElement("canvas"),lbc=document.createElement("canvas");
+const vcv=$("vcv"),setInfo=t=>$("vinfo").textContent=t;
+const eNow=()=>performance.now()*1e6;
+function eOut(){$("o_thr").textContent=$("thr").value;$("o_foc").textContent=$("foc").value+" px";$("o_ph").textContent=(+$("ph").value).toFixed(2)+" m"}
+for(const id of ["thr","foc","ph"])$(id).addEventListener("input",()=>{eOut();if(E.kind==="image"&&!E.busy)runImage()});
+eOut();
+
+async function loadModel(src){
+  E.sess=null;
+  if(typeof ort==="undefined"){$("mstat").textContent="Không tải được onnxruntime-web (cần mạng để tải từ CDN).";return}
+  ort.env.wasm.numThreads=1;
+  try{
+    $("mstat").textContent="Đang tải model…";
+    const buf=typeof src==="string"?await fetch(src).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer()}):src;
+    const sess=await ort.InferenceSession.create(buf,{executionProviders:["wasm"]});
+    let size=0,err="";
+    for(const sz of [416,640]){   // YOLOX nano/tiny = 416, s/m/l = 640
+      try{await sess.run({[sess.inputNames[0]]:new ort.Tensor("float32",new Float32Array(3*sz*sz),[1,3,sz,sz])});size=sz;break}catch(e){err=String(e)}
+    }
+    if(!size)throw new Error("không chạy được với input 416/640: "+err);
+    E.sess=sess;E.size=size;
+    $("mstat").textContent=`Sẵn sàng · input ${size}×${size} · ${(buf.byteLength/1048576).toFixed(1)} MB · wasm (CPU)`;
+  }catch(e){
+    $("mstat").textContent="Không nạp được model ("+e.message+"). Nếu mở bằng file://, hãy chạy: python3 -m http.server -d ui 8000 rồi vào http://localhost:8000, hoặc chọn file .onnx bên dưới.";
+  }
+}
+$("modelfile").onchange=e=>e.target.files[0]&&e.target.files[0].arrayBuffer().then(loadModel);
+E.loading=loadModel("models/yolox_nano.onnx");
+
+/** Whole pipeline for one frame: grab -> letterbox -> inference -> decode -> NMS (original-pixel boxes). */
+async function detect(src,sw,sh){
+  const tGrab=performance.now();
+  snap.width=sw;snap.height=sh;snap.getContext("2d").drawImage(src,0,0,sw,sh);
+  const z=E.size,{r,nw,nh}=YOLOX.letterbox(sw,sh,z);
+  lbc.width=lbc.height=z;const g=lbc.getContext("2d",{willReadFrequently:true});
+  g.fillStyle="rgb(114,114,114)";g.fillRect(0,0,z,z);g.drawImage(snap,0,0,nw,nh);
+  const blob=YOLOX.blobFromRGBA(g.getImageData(0,0,z,z).data,z,z);
+  const out=await E.sess.run({[E.sess.inputNames[0]]:new ort.Tensor("float32",blob,[1,3,z,z])});
+  const o=out[E.sess.outputNames[0]];
+  const dec=YOLOX.decodePersons(o.data,o.dims[1],z,z,+$("thr").value);
+  if(!dec.ok)throw new Error("output tensor không khớp YOLOX (rows="+o.dims[1]+")");
+  const dets=YOLOX.nms(dec.boxes,0.45).map(b=>({x1:b.x1/r,y1:b.y1/r,x2:b.x2/r,y2:b.y2/r,conf:b.score,h:(b.y2-b.y1)/r}));
+  return {dets,tGrab,ms:performance.now()-tGrab,sw,sh};
+}
+
+function eSupervisor(){return E.sup||(E.sup=new Supervisor(cfg()))}
+function decide(inp){const sup=eSupervisor();sup.c=cfg();return sup.update(inp)}
+
+function eRender(d,near,res){
+  const b=$("e_badge");b.textContent=NAMES[d.state];b.className="badge "+NAMES[d.state];
+  $("e_speed").textContent=d.speed.toFixed(2);$("e_near").textContent=near>=0?near.toFixed(1):"—";
+  const ch=$("e_reasons");ch.textContent="";
+  const act=FLAGS.filter(f=>d.reasons&f[0]);
+  if(!act.length){const c=document.createElement("span");c.className="chip none";
+    c.textContent=!E.kind?"Chưa có ảnh/video đầu vào":d.state?"Đang hồi phục (chờ chuỗi khung hình khỏe)":"Không có lý do hạn chế";ch.append(c)}
+  for(const f of act){const c=document.createElement("span");c.className="chip"+(f[2]?" stop":"");c.textContent=f[1];ch.append(c)}
+  if(res)drawFrame(res,d.state);
+}
+function drawFrame(res,state){
+  vcv.width=res.sw;vcv.height=res.sh;const g=vcv.getContext("2d");g.drawImage(snap,0,0);
+  const sm=res.sm,col=css(["--ok","--warn","--stop"][state]),lw=Math.max(2,res.sw/320);
+  g.font=`${Math.max(12,Math.round(res.sw/50))}px system-ui`;g.textBaseline="top";
+  res.dets.forEach((d,i)=>{
+    const near=i===sm.idx;g.lineWidth=near?lw*1.6:lw;g.strokeStyle=near?col:css("--accent");
+    g.strokeRect(d.x1,d.y1,d.x2-d.x1,d.y2-d.y1);
+    const dist=YOLOX.estimateDistance(d.h,+$("foc").value,+$("ph").value);
+    const t=`${dist===null?"?":dist.toFixed(1)} m · ${d.conf.toFixed(2)}`,w=g.measureText(t).width+8,fs=parseInt(g.font);
+    g.fillStyle=near?col:css("--accent");g.fillRect(d.x1,Math.max(0,d.y1-fs-4),w,fs+4);
+    g.fillStyle="#fff";g.fillText(t,d.x1+4,Math.max(0,d.y1-fs-4)+2);
+  });
+}
+function pct(a,p){const s=a.slice().sort((x,y)=>x-y);return s[Math.min(s.length-1,Math.ceil(p/100*s.length)-1)]}
+function eStats(){
+  const a=E.lat,k=[["Khung hình",E.frames],["Người",E.last.n??0]];
+  if(a.length){k.push(["p50",pct(a,50).toFixed(1)+" ms"],["p99",pct(a,99).toFixed(1)+" ms"],["max",Math.max(...a).toFixed(1)+" ms"]);
+    if(E.kind==="video"&&E.frames>1)k.push(["FPS xử lý",(E.frames/((performance.now()-E.t0)/1000)).toFixed(1)])}
+  $("e_kpis").innerHTML=k.map(([n,v])=>`<div class=kpi><div>${n}</div><div class=big style="font-size:20px">${v}</div></div>`).join("");
+}
+
+/** One decision cycle from a fresh frame. */
+async function processFrame(src,sw,sh){
+  if(E.busy||!E.sess)return null;E.busy=true;
+  try{
+    const res=await detect(src,sw,sh);
+    res.sm=YOLOX.summarise(res.dets.map(d=>({h:d.h,conf:d.conf})),+$("foc").value,+$("ph").value);
+    const now=eNow(),last=res.tGrab*1e6;E.lastNs=now;
+    E.last={conf:res.sm.conf,dist:res.sm.nearest,lat:res.ms,n:res.dets.length,grab:last};
+    const d=decide({now,last,conf:res.sm.conf,dist:res.sm.nearest,lat:res.ms*MS});
+    E.lat.push(res.ms);if(E.lat.length>600)E.lat.shift();E.frames++;
+    eRender(d,res.sm.nearest,res);eStats();return res;
+  }catch(e){setInfo("Lỗi xử lý khung hình: "+e.message+(String(e).includes("SecurityError")?" — mở trang qua http://localhost thay vì file://":""));return null}
+  finally{E.busy=false}
+}
+
+/* video loop: one detection per presented frame; if none arrives the data goes stale */
+function videoTick(){
+  if(!E.playing||E.kind!=="video")return;
+  const next=()=>vid.requestVideoFrameCallback?vid.requestVideoFrameCallback(videoTick):requestAnimationFrame(videoTick);
+  if(!E.cut&&!E.busy&&vid.readyState>=2)processFrame(vid,vid.videoWidth,vid.videoHeight);
+  next();
+}
+/* heartbeat: while video/cut, keep ticking the supervisor with the last frame's data so a
+   stalled camera or slow detector makes the data age grow (DEGRADED -> SAFE_STOP) */
+setInterval(()=>{
+  if(!E.sup||!(E.kind==="video"||E.cut))return;
+  if(eNow()-E.lastNs<100*MS)return;
+  const L=E.last,now=eNow(),d=decide({now,last:L.grab??now,conf:L.conf,dist:L.dist,lat:L.lat*MS});
+  eRender(d,L.dist);E.lastNs=now;
+},100);
+
+async function runImage(){
+  if(!E.img||!E.sess)return;
+  E.sup=null;E.lat=[];E.frames=0;E.t0=performance.now();
+  const n=Math.max(cfg().rc+2,20);setInfo(`Ảnh ${E.img.naturalWidth}×${E.img.naturalHeight}: chạy ${n} chu kỳ để supervisor thoát SAFE_STOP khởi động…`);
+  let res=null;
+  for(let i=0;i<n;i++){res=await processFrame(E.img,E.img.naturalWidth,E.img.naturalHeight);if(!res)return}
+  setInfo(`Ảnh ${res.sw}×${res.sh} · ${res.dets.length} người · ${n} lần chạy (số liệu latency là trên cùng một ảnh)`);
+}
+function playVideo(){
+  E.sup=null;E.lat=[];E.frames=0;E.t0=performance.now();E.playing=true;
+  vid.play().then(()=>{$("e_pause").textContent="Tạm dừng";setInfo(`Video ${vid.videoWidth}×${vid.videoHeight}: mỗi khung hình đi qua detector rồi supervisor`);videoTick()}).catch(e=>setInfo("Không phát được video: "+e.message));
+}
+async function useMedia(url,kind,label){
+  if(E.loading)await E.loading;
+  E.kind=null;E.playing=false;vid.pause();E.cut=false;$("e_cut").setAttribute("aria-pressed","false");
+  if(!E.sess){setInfo("Model chưa sẵn sàng.");return}
+  if(kind==="image"){
+    const im=new Image();im.onload=()=>{E.img=im;E.kind="image";runImage()};
+    im.onerror=()=>setInfo("Không đọc được ảnh "+label);im.src=url;
+  }else{
+    vid.onloadeddata=()=>{E.kind="video";E.img=null;playVideo()};
+    vid.onerror=()=>setInfo("Trình duyệt không giải mã được video "+label+" (thử mp4/H.264 hoặc webm)");
+    vid.src=url;vid.load();
+  }
+}
+function pickFile(f){if(!f)return;useMedia(URL.createObjectURL(f),f.type.startsWith("video")?"video":"image",f.name)}
+$("media").onchange=e=>pickFile(e.target.files[0]);
+$("smp_img").onclick=()=>useMedia("samples/pedestrians.jpg","image","mẫu");
+$("smp_vid").onclick=()=>useMedia("samples/vtest_12s.mp4","video","mẫu");
+$("dz2").ondragover=e=>{e.preventDefault();$("dz2").classList.add("over")};
+$("dz2").ondragleave=()=>$("dz2").classList.remove("over");
+$("dz2").ondrop=e=>{e.preventDefault();$("dz2").classList.remove("over");pickFile(e.dataTransfer.files[0])};
+$("e_pause").onclick=e=>{
+  if(E.kind!=="video")return;
+  if(E.playing){E.playing=false;vid.pause();e.currentTarget.textContent="Tiếp tục"}else{E.playing=true;vid.play();videoTick();e.currentTarget.textContent="Tạm dừng"}
+};
+$("e_rerun").onclick=()=>{E.kind==="image"?runImage():E.kind==="video"&&(vid.currentTime=0,playVideo())};
+$("e_cut").onclick=e=>{E.cut=!E.cut;e.currentTarget.setAttribute("aria-pressed",E.cut)};
+$("e_dl").onclick=()=>{
+  if(!E.lat.length)return;const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([E.lat.map(m=>Math.round(m*1e6)).join("\n")+"\n"],{type:"text/plain"}));
+  a.download="latency.txt";a.click();URL.revokeObjectURL(a.href);
+};
+$("e_gate").onclick=()=>{
+  if(!E.lat.length)return;lastText=E.lat.map(m=>Math.round(m*1e6)).join("\n");selectTab("gate");runGate(lastText);
+};
+eRender({state:2,speed:0,reasons:0},-1,null);eStats();
+if(location.hash==="#image")$("smp_img").click();else if(location.hash==="#video")$("smp_vid").click();
+
+reset();fmtOut();
+matchMedia("(prefers-color-scheme:dark)").addEventListener("change",draw);
+</script>
+</body>
+</html>

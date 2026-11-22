@@ -1,0 +1,6 @@
+[11:22:03.794674451] (+0.000081375) 09d53e72625a ros2:rclcpp_publish: { cpu_id = 4 }, { procname = "supervisor_node", vpid = 69, vtid = 69 }, { message = 0xFFFFDEB54C00 }
+[11:22:03.794677159] (+0.000000708) 09d53e72625a ros2:rmw_publish: { cpu_id = 4 }, { procname = "supervisor_node", vpid = 69, vtid = 69 }, { rmw_publisher_handle = 0xAAAACD68B160, message = 0xFFFFDEB54C00, timestamp = 1795346523794677054 }
+[11:22:03.794919201] (+0.000016667) 09d53e72625a ros2:rclcpp_publish: { cpu_id = 4 }, { procname = "supervisor_node", vpid = 69, vtid = 69 }, { message = 0xFFFFDEB54E30 }
+[11:22:03.794920034] (+0.000000416) 09d53e72625a ros2:rmw_publish: { cpu_id = 4 }, { procname = "supervisor_node", vpid = 69, vtid = 69 }, { rmw_publisher_handle = 0xAAAACD68B160, message = 0xFFFFDEB54E30, timestamp = 1795346523794919929 }
+[11:22:03.795238451] (+0.000018333) 09d53e72625a ros2:rclcpp_publish: { cpu_id = 4 }, { procname = "supervisor_node", vpid = 69, vtid = 69 }, { message = 0xFFFFDEB55140 }
+[11:22:03.795239243] (+0.000000459) 09d53e72625a ros2:rmw_publish: { cpu_id = 4 }, { procname = "supervisor_node", vpid = 69, vtid = 69 }, { rmw_publisher_handle = 0xAAAACD68B160, message = 0xFFFFDEB55140, timestamp = 1795346523795239096 }

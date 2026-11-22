@@ -1,0 +1,120 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core-linux:
+    name: core (${{ matrix.compiler }}, ${{ matrix.sanitizer }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {compiler: g++, sanitizer: none, flags: ""}
+          - {compiler: clang++, sanitizer: asan-ubsan, flags: "-fsanitize=address,undefined -fno-omit-frame-pointer"}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: >
+          cmake -S src/guardrail_core -B build
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="${{ matrix.flags }}"
+      - run: cmake --build build -j
+      - run: ctest --test-dir build --output-on-failure
+
+  static-analysis:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang-tidy cppcheck
+      - run: cmake -S src/guardrail_core -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DGUARDRAIL_BUILD_TESTS=OFF
+      - run: clang-tidy -p build src/guardrail_core/src/*.cpp
+      - run: scripts/run_cppcheck.sh
+
+  tools-and-campaign:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: cmake -S src/guardrail_core -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+      - run: ./build/fault_campaign --scenario all --csv campaign.csv
+      - uses: actions/upload-artifact@v4
+        with: {name: fault-campaign, path: campaign.csv}
+      - name: trace -> latency -> gate (fixture end-to-end)
+        working-directory: src/guardrail_tools
+        run: |
+          python3 -m guardrail_tools.trace_to_latency --input test/fixtures/stages.csv \
+            --start-stage capture --end-stage detect_published --output "$RUNNER_TEMP/lat.txt"
+          "$GITHUB_WORKSPACE/build/latency_gate" --input "$RUNNER_TEMP/lat.txt" --p99-ms 30
+      - run: pip install ruff mypy
+      - working-directory: src/guardrail_tools
+        run: |
+          ruff check .
+          mypy guardrail_tools
+          python -m unittest discover -s test -v
+
+  bridge-python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install ruff mypy
+      - working-directory: src/guardrail_bridge
+        run: |
+          ruff check .
+          mypy guardrail_bridge
+          python -m unittest discover -s test -v
+
+  docker-ci-image:
+    name: Docker ci target (Jazzy build + test)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target ci -t guardrail-ros:ci .
+
+  ros2-jazzy:
+    name: ROS 2 Jazzy build
+    runs-on: ubuntu-24.04
+    container: ros:jazzy
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update && apt-get install -y python3-colcon-common-extensions libgtest-dev
+      - shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --event-handlers console_direct+
+          colcon test --return-code-on-test-failure
+          colcon test-result --verbose
+
+  ros2-lyrical:
+    name: ROS 2 Lyrical build (experimental)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    container: ros:lyrical
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update && apt-get install -y python3-colcon-common-extensions libgtest-dev
+      - shell: bash
+        run: |
+          source /opt/ros/lyrical/setup.bash
+          colcon build
+          colcon test --return-code-on-test-failure
+
+  sbom:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with: {name: sbom, path: sbom.cdx.json}
