@@ -86,10 +86,12 @@ jobs:
     container: ros:jazzy
     steps:
       - uses: actions/checkout@v4
-      - run: apt-get update && apt-get install -y python3-colcon-common-extensions libgtest-dev
+      - run: apt-get update && apt-get install -y python3-colcon-common-extensions python3-rosdep libgtest-dev
       - shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
+          (rosdep init || true) && rosdep update --rosdistro jazzy
+          rosdep install --from-paths src --ignore-src -y --rosdistro jazzy
           colcon build --event-handlers console_direct+
           colcon test --return-code-on-test-failure
           colcon test-result --verbose

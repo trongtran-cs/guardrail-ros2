@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 # Fields that must never be forwarded to enterprise systems.
 FORBIDDEN_FIELDS = frozenset({"image", "frame", "face_embedding", "raw", "pointcloud"})

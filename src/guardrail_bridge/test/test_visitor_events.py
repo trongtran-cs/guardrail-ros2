@@ -7,7 +7,9 @@ from guardrail_bridge.visitor_events import PrivacyViolation, VisitorEventStore
 KEY = b"k" * 32
 
 
-def make_store(now=[1000.0], **kw):
+def make_store(now=None, **kw):
+    if now is None:
+        now = [1000.0]
     return VisitorEventStore(hmac_key=KEY, clock=lambda: now[0], **kw), now
 
 
