@@ -16,6 +16,7 @@ import hashlib
 import hmac
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 # Fields that must never be forwarded to enterprise systems.
 FORBIDDEN_FIELDS = frozenset({"image", "frame", "face_embedding", "raw", "pointcloud"})
@@ -42,7 +43,7 @@ class VisitorEventStore:
     hmac_key: bytes
     retention_s: float = 24 * 3600.0
     clock: Callable[[], float] = field(default=lambda: 0.0)
-    _events: list[dict] = field(default_factory=list, init=False)
+    _events: list[dict[str, Any]] = field(default_factory=list, init=False)
     audit_log: list[AuditRecord] = field(default_factory=list, init=False)
 
     def __post_init__(self) -> None:
@@ -55,7 +56,7 @@ class VisitorEventStore:
         digest = hmac.new(self.hmac_key, raw_id.encode("utf-8"), hashlib.sha256)
         return digest.hexdigest()[:32]
 
-    def ingest(self, event: dict) -> dict:
+    def ingest(self, event: dict[str, Any]) -> dict[str, Any]:
         """Validate, pseudonymise and store an event. Returns the stored copy."""
         now = self.clock()
         try:
@@ -67,7 +68,7 @@ class VisitorEventStore:
         self.audit_log.append(AuditRecord(now, "accepted", stored["event_type"]))
         return dict(stored)
 
-    def _validate_and_transform(self, event: dict) -> dict:
+    def _validate_and_transform(self, event: dict[str, Any]) -> dict[str, Any]:
         present_forbidden = FORBIDDEN_FIELDS & set(event)
         if present_forbidden:
             raise PrivacyViolation(
