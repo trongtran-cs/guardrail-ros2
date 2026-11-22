@@ -35,13 +35,13 @@ else()
 endif()
 
 add_executable(detector_node src/detector_node.cpp)
-target_link_libraries(detector_node guardrail_detector_lib guardrail_core::guardrail_core)
-ament_target_dependencies(detector_node rclcpp sensor_msgs cv_bridge guardrail_msgs)
+target_link_libraries(detector_node guardrail_detector_lib guardrail_core::guardrail_core
+  rclcpp::rclcpp sensor_msgs::sensor_msgs_library cv_bridge::cv_bridge guardrail_msgs::guardrail_msgs__rosidl_typesupport_cpp)
 target_compile_options(detector_node PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(image_source_node src/image_source_node.cpp)
-target_link_libraries(image_source_node ${OpenCV_LIBS})
-ament_target_dependencies(image_source_node rclcpp sensor_msgs cv_bridge)
+target_link_libraries(image_source_node ${OpenCV_LIBS}
+  rclcpp::rclcpp sensor_msgs::sensor_msgs_library cv_bridge::cv_bridge)
 target_compile_options(image_source_node PRIVATE -Wall -Wextra -Wpedantic)
 
 if(TARGET onnxruntime::onnxruntime)

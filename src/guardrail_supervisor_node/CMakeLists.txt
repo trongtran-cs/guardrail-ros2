@@ -11,10 +11,9 @@ find_package(guardrail_msgs REQUIRED)
 find_package(guardrail_core REQUIRED)
 
 add_executable(supervisor_node src/supervisor_node.cpp)
-# ament_export_targets namespaces the imported target as <package>::<target>.
-# ament_target_dependencies uses the plain signature, so keep this plain too (no PRIVATE).
-target_link_libraries(supervisor_node guardrail_core::guardrail_core)
-ament_target_dependencies(supervisor_node rclcpp guardrail_msgs)
+# Modern target-based linking: ament_target_dependencies was removed in newer ROS 2 distros.
+target_link_libraries(supervisor_node guardrail_core::guardrail_core
+  rclcpp::rclcpp guardrail_msgs::guardrail_msgs__rosidl_typesupport_cpp)
 target_compile_options(supervisor_node PRIVATE -Wall -Wextra -Wpedantic)
 
 install(TARGETS supervisor_node DESTINATION lib/${PROJECT_NAME})
